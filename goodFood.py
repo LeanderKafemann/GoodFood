@@ -1,7 +1,7 @@
 import bueroUtils
 bü = bueroUtils.bueroUtils(packageName="GoodFood")
 
-import os, datetime, naturalsize, sqlite3, shutil
+import os, datetime, naturalsize, sqlite3, shutil, requests, random
 from tkinter import *
 from tkinter.filedialog import askopenfilename
 
@@ -41,7 +41,29 @@ c = Canvas(root, width=600, height=800)
 c.configure(bg="light blue")
 c.pack()
 
-c.benachrichtigung = c.create_text(300, 720, text="GoodFood gestartet", font=("Verdana", "17"))
+c.benachrichtigung = c.create_text(300, 720, text="GoodFood starten...", font=("Verdana", "17"))
+
+def notification(n: str):
+    c.itemconfig(c.benachrichtigung, text=n)
+
+notification("Externe Datenbank laden...")
+uploadPath = None
+password = None
+if "redirectDBRequest.txt" in os.listdir(HPATH):
+    with open(HPATH+"redirectDBRequest.txt", "r", encoding="utf-8") as f:
+        redirectPath, uploadPath, password_ = f.read().split("#*#")
+    try:
+        password = py.password("Passwort für externe Datenbank eingeben:", "Externe Datenbank")
+        random.seed(int(password))
+        if random.randint(0, 100000000) != int(password_):
+            raise ValueError("Falsches Passwort")
+        with requests.get(redirectPath, data={"password": password}) as r:
+            with open(HPATH+"food.db", "wb") as f:
+                f.write(r.content)
+    except Exception as e:
+        uploadPath = None
+        py.alert("Externe Datenbank konnte nicht geladen werden.\n\n"+e, "Fehler")
+    notification("Externe Datenbank geladen")
 
 a = "food.db" in os.listdir(HPATH)
 
@@ -196,9 +218,13 @@ def saveAll():
         for j in lebensmittel[räume.index(i)]:
             cur.execute("INSERT INTO "+i+" (name, dates) VALUES ('"+j+"', '"+mhds[räume.index(i)][lebensmittel[räume.index(i)].index(j)]+"');")
     notification("Alle Daten gespeichert")
-
-def notification(n: str):
-    c.itemconfig(c.benachrichtigung, text=n)
+    if uploadPath is not None:
+        notification("Externe Datenbank hochladen...")
+        try:
+            requests.post(uploadPath, files={"file": open(HPATH+"food.db", "rb")}, data={"password": password})
+            notification("Externe Datenbank hochgeladen")
+        except:
+            py.alert("Externe Datenbank konnte nicht hochgeladen werden.", "Fehler")
 
 def showRooms():
     py.alert("Räume:\n"+str(räume).rstrip("]").lstrip("[").replace(", ", "\n").replace("'", ""), "Räume")
@@ -281,7 +307,7 @@ def importNQuit():
         notification("Abgebrochen")
 
 c.create_text(300, 30, text="GoodFood", font=("Verdana", "30", "bold"))
-c.create_text(300, 790, text="Copyright Leander Kafemann 2025  -  Version 1.0.0", font=("Verdana", "5"))
+c.create_text(300, 790, text="Copyright Leander Kafemann 2023-2025  -  Version 1.1.0", font=("Verdana", "5"))
 
 c.create_window(300, 650, window=Button(master=root, command=quit_, text="Beenden", background="light blue", relief="ridge", height=2, width=30))
 
@@ -303,5 +329,7 @@ c.create_window(550, 380, window=Button(master=root, command=abgelaufen, text="�
 c.create_window(265, 550, window=Button(master=root, command=down, text="⇓", background="light blue", activebackground="blue", relief="ridge"), width=33)
 c.create_window(335, 550, window=Button(master=root, command=up, text="⇑", background="light blue", activebackground="blue", relief="ridge"), width=33)
 c.create_window(300, 550, window=Button(master=root, command=importNQuit, text="🡇", background="light blue", activebackground="blue", relief="ridge"), width=33)
+
+notification("GoodFood gestartet")
 
 root.mainloop()
