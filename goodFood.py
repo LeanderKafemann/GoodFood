@@ -60,11 +60,11 @@ if "redirectDBRequest.txt" in os.listdir(HPATH):
         if random.randint(1, 1000000000) != int(password_):
             py.alert("Falsches Passwort!", "Fehler")
             raise ValueError("Falsches Passwort")
-        with requests.get(redirectPath+"getDB", data={"password": password}) as r:
+        with requests.post(redirectPath+"getDB", data={"password": password}) as r:
             with open(HPATH+"food.db", "wb") as f:
                 f.write(r.content)
-        with requests.get(redirectPath+"getRooms", data={"password": password}) as r:
-            with open(HPATH+"räume.txt", "w") as f:
+        with requests.post(redirectPath+"getRooms", data={"password": password}) as r:
+            with open(HPATH+"räume.txt", "w", encoding="utf-8") as f:
                 f.write(r.content.decode("utf-8"))
     except Exception as e:
         redirectPath = None
@@ -142,7 +142,7 @@ def addLM():
                 if antwort3 == "Neues Lebensmittel":
                     antwort3 = py.prompt("Neues Lebensmittel eingeben:", "neues Lebensmittel")
                 antwort4 = py.prompt("Mindesthaltbarkeitsdatum des Lebensmittels eingeben:\n\nAchtung: 31 Tage je Monat:", antwort2, "1.1.2000"); addA4 = "x"
-                while addA4 != "":
+                while addA4 is not None and addA4 != "":
                     if addA4 != "x":
                         antwort4 += "|"+addA4
                     addA4 = py.prompt("Mindesthaltbarkeitsdatum eines weiteren Exemplars eingeben (sonst nichts):", antwort2, "1.1.2001")
@@ -223,6 +223,7 @@ def saveAll():
         cur.execute("INSERT INTO "+i+" (name, dates) VALUES ('Default', '1.1.2000');")
         for j in lebensmittel[räume.index(i)]:
             cur.execute("INSERT INTO "+i+" (name, dates) VALUES ('"+j+"', '"+mhds[räume.index(i)][lebensmittel[räume.index(i)].index(j)]+"');")
+    con.commit()
     notification("Alle Daten gespeichert")
     if redirectPath is not None:
         notification("Externe Datenbank hochladen...")
