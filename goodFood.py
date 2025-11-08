@@ -4,6 +4,9 @@ bü = bueroUtils.bueroUtils(packageName="GoodFood")
 import os, datetime, naturalsize, sqlite3, shutil, requests, random
 from tkinter import *
 from tkinter.filedialog import askopenfilename
+import pyautogui as py
+
+VERSION = "1.1.0"
 
 py = bü.importPyautoguiCatched()
 dLg = bü.dLg
@@ -47,21 +50,24 @@ def notification(n: str):
     c.itemconfig(c.benachrichtigung, text=n)
 
 notification("Externe Datenbank laden...")
-uploadPath = None
+redirectPath = None
 password = None
 if "redirectDBRequest.txt" in os.listdir(HPATH):
     with open(HPATH+"redirectDBRequest.txt", "r", encoding="utf-8") as f:
-        redirectPath, uploadPath, password_ = f.read().split("#*#")
+        redirectPath, password_ = f.read().split("#*#")
     try:
         password = py.password("Passwort für externe Datenbank eingeben:", "Externe Datenbank")
         random.seed(int(password))
         if random.randint(0, 100000000) != int(password_):
             raise ValueError("Falsches Passwort")
-        with requests.get(redirectPath, data={"password": password}) as r:
+        with requests.get(redirectPath+"getDB", data={"password": password}) as r:
             with open(HPATH+"food.db", "wb") as f:
                 f.write(r.content)
+        with requests.get(redirectPath+"getRooms", data={"password": password}) as r:
+            with open(HPATH+"räume.txt", "wb") as f:
+                f.write(r.content.decode("utf-8"))
     except Exception as e:
-        uploadPath = None
+        redirectPath = None
         py.alert("Externe Datenbank konnte nicht geladen werden.\n\n"+e, "Fehler")
     notification("Externe Datenbank geladen")
 
@@ -218,10 +224,11 @@ def saveAll():
         for j in lebensmittel[räume.index(i)]:
             cur.execute("INSERT INTO "+i+" (name, dates) VALUES ('"+j+"', '"+mhds[räume.index(i)][lebensmittel[räume.index(i)].index(j)]+"');")
     notification("Alle Daten gespeichert")
-    if uploadPath is not None:
+    if redirectPath is not None:
         notification("Externe Datenbank hochladen...")
         try:
-            requests.post(uploadPath, files={"file": open(HPATH+"food.db", "rb")}, data={"password": password})
+            requests.post(redirectPath+"setDB", files={"file": open(HPATH+"food.db", "rb")}, data={"password": password})
+            requests.post(redirectPath+"setRooms", data={"password": password, "rooms": open(HPATH+"räume.txt", "r", encoding="utf-8").read()})
             notification("Externe Datenbank hochgeladen")
         except:
             py.alert("Externe Datenbank konnte nicht hochgeladen werden.", "Fehler")
@@ -293,21 +300,49 @@ def ablaufend():
     notification("Ablaufendes geprüft")
 
 def importNQuit():
-    if bü.buttonLog("Wirklich bestehende Daten überschreiben?", "Importieren") == "Fortfahren":
-        db = askopenfilename(filetypes=[("Database", "*.db")], title="Datenbank wählen")
-        rooms = askopenfilename(filetypes=[("TXT-Raumdatei", "*txt")], title="Raumdatei wählen")
-        os.remove(HPATH+"food.db")
-        os.remove(HPATH+"räume.txt")
-        shutil.move(db, HPATH+"food.db")
-        shutil.move(rooms, HPATH+"räume.txt")
-        notification("Erfolgreich importiert")
-        py.alert("Ein Neustart ist erforderlich.")
-        quit()
-    else:
-        notification("Abgebrochen")
+    match bü.buttonLog("Möchten Sie einmalig importieren oder dauerhaft eine andere Quelle nutzen?",\
+                       "Importieren oder dauerhaft nutzen?", buttons=["Importieren", "Dauerhaft nutzen", "Abbrechen"]):
+        case "Dauerhaft nutzen":
+            if redirectPath is not None:
+                if bü.buttonLog("Möchten Sie die bestehende Verbindung zur externen Datenbank entfernen?", "Externe Datenbank entfernen", buttons=["Entfernen", "Abbrechen"]) == "Entfernen":
+                    os.remove(HPATH+"redirectDBRequest.txt")
+                    py.alert("Verbindung zur externen Datenbank entfernt.\n\nEin Neustart ist erforderlich.", "Erfolgreich")
+                    notification("Externe Datenbank-Verbindung entfernt")
+                    quit()
+                else:
+                    notification("Abgebrochen")
+            else:
+                rdPath = py.prompt("URL der externen Datenbank eingeben:", "Dauerhaft externe Datenbank nutzen")
+                if rdPath is not None:
+                    with open(HPATH+"redirectDBRequest.txt", "w", encoding="utf-8") as f:
+                        password = py.password("Passwort (numerisch) für externe Datenbank eingeben:", "Dauerhaft externe Datenbank nutzen")
+                        random.seed(int(password))
+                        password_ = str(random.randint(0, 100000000))
+                        f.write(rdPath+"#*#"+password_)
+                    py.alert("Externe Datenbank wird beim nächsten Start verwendet.\n\nPasswort: "+password, "Erfolgreich")
+                    notification("Externe Datenbank wird genutzt")
+                    py.alert("Ein Neustart ist erforderlich.")
+                    quit()
+                else:
+                    notification("Abgebrochen")
+        case "Importieren":
+            if bü.buttonLog("Wirklich bestehende Daten überschreiben?", "Importieren") == "Fortfahren":
+                db = askopenfilename(filetypes=[("Database", "*.db")], title="Datenbank wählen")
+                rooms = askopenfilename(filetypes=[("TXT-Raumdatei", "*txt")], title="Raumdatei wählen")
+                os.remove(HPATH+"food.db")
+                os.remove(HPATH+"räume.txt")
+                shutil.move(db, HPATH+"food.db")
+                shutil.move(rooms, HPATH+"räume.txt")
+                notification("Erfolgreich importiert")
+                py.alert("Ein Neustart ist erforderlich.")
+                quit()
+            else:
+                notification("Abgebrochen")
+        case "Abbrechen" | _:
+            notification("Abgebrochen")
 
 c.create_text(300, 30, text="GoodFood", font=("Verdana", "30", "bold"))
-c.create_text(300, 790, text="Copyright Leander Kafemann 2023-2025  -  Version 1.1.0", font=("Verdana", "5"))
+c.create_text(300, 790, text=f"Copyright Leander Kafemann 2023-2025  -  Version {VERSION}", font=("Verdana", "5"))
 
 c.create_window(300, 650, window=Button(master=root, command=quit_, text="Beenden", background="light blue", relief="ridge", height=2, width=30))
 
@@ -329,6 +364,9 @@ c.create_window(550, 380, window=Button(master=root, command=abgelaufen, text="�
 c.create_window(265, 550, window=Button(master=root, command=down, text="⇓", background="light blue", activebackground="blue", relief="ridge"), width=33)
 c.create_window(335, 550, window=Button(master=root, command=up, text="⇑", background="light blue", activebackground="blue", relief="ridge"), width=33)
 c.create_window(300, 550, window=Button(master=root, command=importNQuit, text="🡇", background="light blue", activebackground="blue", relief="ridge"), width=33)
+
+if redirectPath is not None:
+    c.create_text(300, 590, text="Externe Datenbank verbunden: "+redirectPath, font=("Verdana", "6"), width=500)
 
 notification("GoodFood gestartet")
 
