@@ -8,7 +8,6 @@ import pyautogui as py
 
 VERSION = "1.1.0"
 
-py = bü.importPyautoguiCatched()
 dLg = bü.dLg
 
 BPATH = "./programdata/buero/"
@@ -58,17 +57,18 @@ if "redirectDBRequest.txt" in os.listdir(HPATH):
     try:
         password = py.password("Passwort für externe Datenbank eingeben:", "Externe Datenbank")
         random.seed(int(password))
-        if random.randint(0, 100000000) != int(password_):
+        if random.randint(1, 1000000000) != int(password_):
+            py.alert("Falsches Passwort!", "Fehler")
             raise ValueError("Falsches Passwort")
         with requests.get(redirectPath+"getDB", data={"password": password}) as r:
             with open(HPATH+"food.db", "wb") as f:
                 f.write(r.content)
         with requests.get(redirectPath+"getRooms", data={"password": password}) as r:
-            with open(HPATH+"räume.txt", "wb") as f:
+            with open(HPATH+"räume.txt", "w") as f:
                 f.write(r.content.decode("utf-8"))
     except Exception as e:
         redirectPath = None
-        py.alert("Externe Datenbank konnte nicht geladen werden.\n\n"+e, "Fehler")
+        py.alert("Externe Datenbank konnte nicht geladen werden.\n\n"+str(e), "Fehler")
     notification("Externe Datenbank geladen")
 
 a = "food.db" in os.listdir(HPATH)
