@@ -6,7 +6,7 @@ from tkinter import *
 from tkinter.filedialog import askopenfilename
 import pyautogui as py
 
-VERSION = "1.1.0"
+__version__ = "1.1.1"
 
 dLg = bü.dLg
 
@@ -318,7 +318,7 @@ def importNQuit():
                     with open(HPATH+"redirectDBRequest.txt", "w", encoding="utf-8") as f:
                         password = py.password("Passwort (numerisch) für externe Datenbank eingeben:", "Dauerhaft externe Datenbank nutzen")
                         random.seed(int(password))
-                        password_ = str(random.randint(0, 100000000))
+                        password_ = str(random.randint(1, 1000000000))
                         f.write(rdPath+"#*#"+password_)
                     py.alert("Externe Datenbank wird beim nächsten Start verwendet.\n\nPasswort: "+password, "Erfolgreich")
                     notification("Externe Datenbank wird genutzt")
@@ -343,7 +343,7 @@ def importNQuit():
             notification("Abgebrochen")
 
 c.create_text(300, 30, text="GoodFood", font=("Verdana", "30", "bold"))
-c.create_text(300, 790, text=f"Copyright Leander Kafemann 2023-2025  -  Version {VERSION}", font=("Verdana", "5"))
+c.create_text(300, 790, text=f"Copyright Leander Kafemann 2023-2025  -  Version {__version__}", font=("Verdana", "5"))
 
 c.create_window(300, 650, window=Button(master=root, command=quit_, text="Beenden", background="light blue", relief="ridge", height=2, width=30))
 
